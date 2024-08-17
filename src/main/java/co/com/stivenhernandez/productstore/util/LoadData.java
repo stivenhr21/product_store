@@ -10,15 +10,12 @@ import org.apache.logging.log4j.Logger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static net.serenitybdd.screenplay.Tasks.instrumented;
 
 public class LoadData implements Task {
 
     private static final Logger LOGGER = LogManager.getLogger(LoadData.class.getName());
-
     private final List<Map<String, Object>> testData;
 
     public LoadData(List<Map<String, Object>> testData) {
@@ -30,20 +27,53 @@ public class LoadData implements Task {
     }
 
     @Override
-    @Step("{0} Loading test data for automation #testData")
+    @Step("{0} Loading test data for automation #TestData")
     public <T extends Actor> void performAs(T actor) {
-        if (!testData.isEmpty()) {
-            Set<Map.Entry<String, Object>> setMapaAux = testData.get(0).entrySet();
-            Map<String, Object> mapAuxiliar =
-                    setMapaAux.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            if (TestData.getMap() == null) {
-                TestData.setMap(mapAuxiliar);
-            } else {
-                TestData.getMap().putAll(mapAuxiliar);
+        if (testData.isEmpty()) {
+            handleEmptyData(actor);
+            return;
+        }
+        Map<String, Object> mapAuxiliar = collectValidData();
+        updateDataPrueba(mapAuxiliar);
+    }
+
+    private <T extends Actor> void handleEmptyData(T actor) {
+        actor.remember("", new HashMap<>());
+        LOGGER.info("The test data list is empty");
+    }
+
+    private Map<String, Object> collectValidData() {
+        Map<String, Object> mapAuxiliar = new HashMap<>();
+        for (Map<String, Object> map : testData) {
+            if (map == null) {
+                LOGGER.info("A null map was found in the test data.");
+                continue;
             }
+            addValidEntries(map, mapAuxiliar);
+        }
+        return mapAuxiliar;
+    }
+
+    private void addValidEntries(Map<String, Object> map, Map<String, Object> mapAuxiliar) {
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                LOGGER.info("A null entry was found in the test data.");
+                continue;
+            }
+            mapAuxiliar.put(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void updateDataPrueba(Map<String, Object> mapAuxiliar) {
+        if (mapAuxiliar.isEmpty()) {
+            LOGGER.info("All test data is empty.");
+            return;
+        }
+
+        if (TestData.getMap() == null) {
+            TestData.setMap(mapAuxiliar);
         } else {
-            actor.remember("", new HashMap<>());
-            LOGGER.info("The list is empty");
+            TestData.getMap().putAll(mapAuxiliar);
         }
     }
 }
